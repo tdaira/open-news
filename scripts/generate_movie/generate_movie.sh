@@ -3,6 +3,7 @@
 # Clean output directory
 rm -rf output
 mkdir -p output
+mkdir -p output/frame
 
 # Specify audio file path
 audio_file="audio.wav"
@@ -59,7 +60,7 @@ while true; do
     fi
     eye_image="images/eye/${eye_shape}.png"
     mouth_image="images/mouth/${mouth_shape}.png"
-    output_frame="output/frame_${frame_number}.png"
+    output_frame="output/frame/${frame_number}.png"
     magick images/face.png \
       \( "${mouth_image}" -geometry 70%x70%+7-87 -gravity center \) -composite \
       \( "${eye_image}" -geometry +4-219 -gravity center \) -composite \
@@ -83,4 +84,4 @@ done
 wait # Wait for all background jobs to complete
 
 # Generate final video
-ffmpeg -y -framerate 30 -i output/frame_%04d.png -i "$audio_file" -c:v libx264 -c:a aac -pix_fmt yuv420p output/video.mp4
+ffmpeg -y -framerate 30 -i output/frame/%04d.png -i "$audio_file" -c:v libx264 -c:a aac -pix_fmt yuv420p output/video.mp4
