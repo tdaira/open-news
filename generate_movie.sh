@@ -48,21 +48,23 @@ while true; do
     mouth_shape=${mouth_shapes[$current_data_index]}
   done
 
-  # Generate frame
-  frame_number=$(printf "%04d" "$count")
-  # Blink eyes every 5 seconds (2 frames)
-  if [ $((count % 150)) -eq 0 -o $((count % 150)) -eq 1 ]; then
-    eye_shape="close"
-  else
-    eye_shape="open"
-  fi
-  eye_image="images/eye/${eye_shape}.png"
-  mouth_image="images/mouth/${mouth_shape}.png"
-  output_frame="output/frame_${frame_number}.png"
-  magick images/face.png \
-    \( "${mouth_image}" -geometry 70%x70%+7-87 -gravity center \) -composite \
-    \( "${eye_image}" -geometry +4-219 -gravity center \) -composite \
-    "${output_frame}"
+  # Generate frame in background
+  ( # Execute in a subshell
+    frame_number=$(printf "%04d" "$count")
+    # Blink eyes every 5 seconds (2 frames)
+    if [ $((count % 150)) -eq 0 -o $((count % 150)) -eq 1 ]; then
+      eye_shape="close"
+    else
+      eye_shape="open"
+    fi
+    eye_image="images/eye/${eye_shape}.png"
+    mouth_image="images/mouth/${mouth_shape}.png"
+    output_frame="output/frame_${frame_number}.png"
+    magick images/face.png \
+      \( "${mouth_image}" -geometry 70%x70%+7-87 -gravity center \) -composite \
+      \( "${eye_image}" -geometry +4-219 -gravity center \) -composite \
+      "${output_frame}"
+  ) & # Execute in the background
 
   count=$((count+1))
 
@@ -70,7 +72,15 @@ while true; do
   if (( $(echo "$current_frame_time > $total_duration" | bc -l) )); then
     break
   fi
+
+  # Limit the number of parallel jobs (optional but recommended)
+  # Adjust the number '8' based on your available CPU cores
+  if [[ $(jobs -r -p | wc -l) -ge 8 ]]; then
+    wait # Wait for any single job to complete -> Changed to wait for all current jobs to complete
+  fi
 done
+
+wait # Wait for all background jobs to complete
 
 # Generate final video
 ffmpeg -y -framerate 30 -i output/frame_%04d.png -i "$audio_file" -c:v libx264 -c:a aac -pix_fmt yuv420p output/video.mp4
